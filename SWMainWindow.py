@@ -5,6 +5,8 @@ SWMainWindow.py
 https://github.com/rsaleksandrov/SearchWordsByLetters
 """
 from PyQt5 import QtWidgets, QtCore, QtGui
+import prefixtree
+from collections import deque
 
 
 class SWMainWindow(QtWidgets.QWidget):
@@ -13,6 +15,7 @@ class SWMainWindow(QtWidgets.QWidget):
                      'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ы', 'ь', 'э', 'ю', 'я']
 
     def __init__(self, parent=None):
+        # Initializate main window
         QtWidgets.QWidget.__init__(self, parent)
         self.resize(622, 435)
         self.setMinimumSize(QtCore.QSize(622, 435))
@@ -59,8 +62,8 @@ class SWMainWindow(QtWidgets.QWidget):
         self.__gpbResult = QtWidgets.QGroupBox(self)
         self.__gpbResult.setMinimumSize(QtCore.QSize(601, 291))
         self.__vbox2 = QtWidgets.QVBoxLayout(self.__gpbResult)
-        self.__lvResult = QtWidgets.QListView(self.__gpbResult)
-        self.__lvResult.setMinimumSize(QtCore.QSize(581, 261))
+        self.__lvResult = QtWidgets.QListWidget(self.__gpbResult)
+        self.__lvResult.setMinimumSize(QtCore.QSize(584, 266))
         self.__vbox2.addWidget(self.__lvResult)
         self.__vbox.addWidget(self.__gpbResult)
 
@@ -72,12 +75,39 @@ class SWMainWindow(QtWidgets.QWidget):
 
         self.__pbFindWords.clicked.connect(self.__findWord)
 
+        # Load words
+        self.__pt = prefixtree.PrefixTree()
+        self.__pt.loadFromTxt('data.txt')
+
+    def __defDupChar(self, word, chars) -> []:
+        res = []
+        tmpword = list(word)
+        for ch in chars:
+            if ch not in tmpword:
+                res.append(ch)
+            else:
+                tmpword.remove(ch)
+
+        return res
+
     def __findWord(self, e):
         chars = []
+        resword = []
         for ch in self.__leChars.text():
             if ch in self.__rusAlphabet:
                 chars.append(ch)
+        stack = deque(set(chars))
         wordLen = self.__spbWordLen.value()
-        print(chars)
-        print(wordLen)
+        while len(stack) > 0:
+            curword = stack.popleft()
+            tmpchars = self.__defDupChar(curword, chars)
+            for ch in tmpchars:
+                tmpword = curword + ch
+                corr, pcorr = self.__pt.checkWord(tmpword)
+                if len(tmpword) == wordLen and corr:
+                    resword.append(tmpword)
+                elif len(tmpword) < wordLen and pcorr:
+                    stack.append(tmpword)
+        self.__lvResult.clear()
+        self.__lvResult.addItems(set(resword))
         pass
